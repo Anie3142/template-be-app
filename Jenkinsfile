@@ -9,7 +9,7 @@ pipeline {
     
     environment {
         AWS_REGION = 'us-east-1'
-        AWS_ACCOUNT_ID = '911027631608'
+        AWS_ACCOUNT_ID = '134807048528'
         ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
         APP_NAME = 'CHANGE_ME'  // <-- CHANGE THIS: your-app-name
         IMAGE_TAG = "${GIT_COMMIT.take(7)}"
@@ -61,10 +61,14 @@ pipeline {
         stage('Deploy via Terraform') {
             steps {
                 dir('terraform') {
+                    // Every terraform invocation is wrapped in `aws2wrap --profile default --`.
+                    // Under OIDC SSO, plain `terraform` fails with "no valid credential sources".
+                    // Jenkins may supply creds via its instance profile, but the wrapper is
+                    // harmless there and keeps dev/prod command shapes identical.
                     sh '''
-                        terraform init -input=false
-                        terraform plan -var="image_tag=${GIT_SHA}" -out=tfplan
-                        terraform apply -auto-approve tfplan
+                        aws2wrap --profile default -- terraform init -input=false
+                        aws2wrap --profile default -- terraform plan -var="image_tag=${GIT_SHA}" -out=tfplan
+                        aws2wrap --profile default -- terraform apply -auto-approve tfplan
                     '''
                 }
             }
