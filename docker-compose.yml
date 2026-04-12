@@ -1,0 +1,92 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.dev
+      DATABASE_URL: postgres://app:app@db:5432/app
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # Hot-reload Django code in dev. Remove the volume for prod-parity testing.
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    # Override the production CMD (gunicorn) with makemigrations + migrate + runserver.
+    # makemigrations runs on first boot so a fresh clone creates apps/example migrations.
+    command: >
+      sh -c "python manage.py makemigrations --noinput &&
+             python manage.py migrate --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
+
+  # ---------------------------------------------------------------------------
+  # Frontend (optional — `--profile full` only).
+  # ---------------------------------------------------------------------------
+  # Expects the frontend repo to be checked out as a sibling of this one:
+  #
+  #     <app>/
+  #       ├── backend/     <- this repo
+  #       └── frontend/    <- clone of template-fe-app
+  #
+  # Two modes:
+  #   docker compose up                     # db + web only (no frontend)
+  #   docker compose --profile full up      # db + web + frontend (full stack)
+  #
+  # Host-only dev still works if you'd rather run `npm run dev` directly on the
+  # frontend repo — the profile never auto-activates.
+  frontend:
+    profiles: ["full"]
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.dev
+    environment:
+      # NEXT_PUBLIC_* is baked into the client bundle and runs in the user's
+      # browser. The browser is on the host, so it reaches the Django container
+      # via the published port mapping (web's `ports: 8000:8000` above), NOT
+      # via the internal service name `web`.
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api/v1
+      NEXT_PUBLIC_DEV_AUTH_BYPASS: "true"
+      # Dummy Auth0 vars — @auth0/nextjs-auth0 v3 only touches these on the
+      # first /api/auth/* hit, so the landing page boots fine without real creds.
+      AUTH0_SECRET: dev-placeholder-run-openssl-rand-hex-32-for-real-value
+      AUTH0_BASE_URL: http://localhost:3000
+      AUTH0_ISSUER_BASE_URL: https://example.auth0.com
+      AUTH0_CLIENT_ID: dev-placeholder
+      AUTH0_CLIENT_SECRET: dev-placeholder
+    depends_on:
+      - web
+    volumes:
+      # Bind-mount the sibling frontend source for hot reload.
+      - ../frontend:/app
+      # Anonymous volumes — these are the fix for the white-screen gotcha.
+      # Without them the host's node_modules (Mac/Linux binaries) clobbers the
+      # container's (Alpine binaries), and the host's .next webpack cache
+      # fights the container's dev server on every rebuild.
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+    command: npm run dev
+
+volumes:
+  pgdata:

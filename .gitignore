@@ -1,13 +1,29 @@
+# Python / Django
 __pycache__/
 *.py[cod]
 *.so
-.env
 .venv/
 venv/
 *.egg-info/
 dist/
 build/
+db.sqlite3
+db.sqlite3-journal
+staticfiles/
+
+# Env files (never commit local secrets)
+.env
+.env.local
+.env.*.local
+
+# Node (only relevant if you ever run FE tooling from here)
+node_modules/
+.next/
+
+# Terraform
 .terraform/
 *.tfstate*
 .terraform.lock.hcl
+
+# Editor / OS
 .DS_Store

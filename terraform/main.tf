@@ -9,7 +9,7 @@ terraform {
 
   # Backend configuration - CHANGE for your app
   backend "s3" {
-    bucket         = "example-terraform-state"
+    bucket         = "example-tf-state"
     key            = "apps/CHANGE_ME/terraform.tfstate"  # <-- CHANGE THIS
     region         = "us-east-1"
     dynamodb_table = "example-terraform-locks"
@@ -34,7 +34,7 @@ provider "aws" {
 data "terraform_remote_state" "network" {
   backend = "s3"
   config = {
-    bucket = "example-terraform-state"
+    bucket = "example-tf-state"
     key    = "live/10-network/terraform.tfstate"
     region = "us-east-1"
   }
@@ -43,7 +43,7 @@ data "terraform_remote_state" "network" {
 data "terraform_remote_state" "ecs" {
   backend = "s3"
   config = {
-    bucket = "example-terraform-state"
+    bucket = "example-tf-state"
     key    = "live/20-ecs/terraform.tfstate"
     region = "us-east-1"
   }
@@ -52,7 +52,7 @@ data "terraform_remote_state" "ecs" {
 data "terraform_remote_state" "traefik" {
   backend = "s3"
   config = {
-    bucket = "example-terraform-state"
+    bucket = "example-tf-state"
     key    = "live/27-traefik/terraform.tfstate"
     region = "us-east-1"
   }
@@ -131,7 +131,7 @@ variable "image_tag" {
 }
 
 variable "ecr_registry" {
-  default = "111111111111.dkr.ecr.us-east-1.amazonaws.com"
+  default = "123456789012.dkr.ecr.us-east-1.amazonaws.com"
 }
 
 variable "cpu" {
