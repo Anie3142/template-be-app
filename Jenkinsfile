@@ -61,7 +61,7 @@ pipeline {
             when { expression { return env.APP_NAME != 'CHANGE_ME' } }
             steps {
                 sh '''
-                    docker build --platform linux/arm64 \
+                    docker build --platform linux/amd64 \
                         -t ${ECR_REGISTRY}/${APP_NAME}:${GIT_SHA} \
                         -t ${ECR_REGISTRY}/${APP_NAME}:latest \
                         .
