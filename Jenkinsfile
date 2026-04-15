@@ -86,14 +86,13 @@ pipeline {
             when { expression { return env.APP_NAME != 'CHANGE_ME' } }
             steps {
                 dir('terraform') {
-                    // Every terraform invocation is wrapped in `aws2wrap --profile default --`.
-                    // Under OIDC SSO, plain `terraform` fails with "no valid credential sources".
-                    // Jenkins may supply creds via its instance profile, but the wrapper is
-                    // harmless there and keeps dev/prod command shapes identical.
+                    // Plain terraform — Jenkins ECS task role provides AWS credentials via IMDS.
+                    // Do NOT use aws2-wrap here: it requires ~/.aws/config (SSO profile), which
+                    // doesn't exist in the ECS container. aws2-wrap is only for dev machines.
                     sh '''
-                        aws2wrap --profile default -- terraform init -input=false
-                        aws2wrap --profile default -- terraform plan -var="image_tag=${GIT_SHA}" -out=tfplan
-                        aws2wrap --profile default -- terraform apply -auto-approve tfplan
+                        terraform init -input=false
+                        terraform plan -var="image_tag=${GIT_SHA}" -out=tfplan
+                        terraform apply -auto-approve tfplan
                     '''
                 }
             }
