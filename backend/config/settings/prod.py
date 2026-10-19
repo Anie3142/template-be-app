@@ -1,6 +1,7 @@
 """Production settings."""
-from .base import *  # noqa: F401,F403
 from decouple import config
+
+from .base import *  # noqa: F401,F403
 
 DEBUG = False
 ALLOWED_HOSTS = config(

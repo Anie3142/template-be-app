@@ -1,0 +1,5 @@
+# Copy to terraform.tfvars (git-ignored) for local plans.
+state_bucket = "my-terraform-state-bucket"
+ecr_registry = "123456789012.dkr.ecr.us-east-1.amazonaws.com"
+app_name     = "myapp"
+hostname     = "myapp.example.com"

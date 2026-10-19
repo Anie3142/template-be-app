@@ -20,7 +20,6 @@ import time
 from django.db import connection
 from django.utils.deprecation import MiddlewareMixin
 
-
 # Endpoints whose data changes rarely (minutes, not seconds). Cached in the
 # user's browser so a back-button or page reload paints from disk instead of
 # hitting Django. Path is matched as a startswith — query strings still vary

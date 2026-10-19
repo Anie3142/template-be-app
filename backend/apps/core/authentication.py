@@ -84,9 +84,9 @@ class Auth0JWTAuthentication(authentication.BaseAuthentication):
 
             return (user, token)
 
-        except jwt.ExpiredSignatureError:
-            raise exceptions.AuthenticationFailed('Token expired')
+        except jwt.ExpiredSignatureError as exc:
+            raise exceptions.AuthenticationFailed('Token expired') from exc
         except jwt.InvalidTokenError as exc:
-            raise exceptions.AuthenticationFailed(f'Invalid token: {exc}')
+            raise exceptions.AuthenticationFailed(f'Invalid token: {exc}') from exc
         except Exception as exc:  # pragma: no cover - network/JWKS failures
-            raise exceptions.AuthenticationFailed(f'Authentication failed: {exc}')
+            raise exceptions.AuthenticationFailed(f'Authentication failed: {exc}') from exc

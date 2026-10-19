@@ -1,13 +1,13 @@
 # =============================================================================
 # Django Backend Template - Production Dockerfile
 # =============================================================================
-# Multi-stage build for ARM64 (t4g instances)
+# Multi-stage build. CI builds with --platform linux/amd64 to match the ECS hosts.
 # =============================================================================
 
 # -----------------------------------------------------------------------------
 # Stage 1: Build dependencies
 # -----------------------------------------------------------------------------
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 

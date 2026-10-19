@@ -7,13 +7,12 @@
 terraform {
   required_version = ">= 1.0"
 
-  # Backend configuration - CHANGE for your app
+  # Partial S3 backend configuration. bucket / key / region / dynamodb_table are
+  # supplied at init time so no account-specific values live in the repo:
+  #   terraform init -backend-config=backend.hcl            (local, see backend.hcl.example)
+  #   terraform init -backend-config="bucket=..." ...       (CI, see Jenkinsfile)
   backend "s3" {
-    bucket         = "example-tf-state"
-    key            = "apps/CHANGE_ME/terraform.tfstate"  # <-- CHANGE THIS
-    region         = "us-east-1"
-    dynamodb_table = "example-terraform-locks"
-    encrypt        = true
+    encrypt = true
   }
 
   required_providers {
@@ -29,32 +28,32 @@ provider "aws" {
 }
 
 # -----------------------------------------------------------------------------
-# Remote State References (from platform-infra)
+# Remote State References (shared platform stacks: network, ECS cluster, Traefik)
 # -----------------------------------------------------------------------------
 data "terraform_remote_state" "network" {
   backend = "s3"
   config = {
-    bucket = "example-tf-state"
+    bucket = var.state_bucket
     key    = "live/10-network/terraform.tfstate"
-    region = "us-east-1"
+    region = var.aws_region
   }
 }
 
 data "terraform_remote_state" "ecs" {
   backend = "s3"
   config = {
-    bucket = "example-tf-state"
+    bucket = var.state_bucket
     key    = "live/20-ecs/terraform.tfstate"
-    region = "us-east-1"
+    region = var.aws_region
   }
 }
 
 data "terraform_remote_state" "traefik" {
   backend = "s3"
   config = {
-    bucket = "example-tf-state"
+    bucket = var.state_bucket
     key    = "live/27-traefik/terraform.tfstate"
-    region = "us-east-1"
+    region = var.aws_region
   }
 }
 
@@ -109,19 +108,26 @@ module "app" {
 # Variables
 # -----------------------------------------------------------------------------
 variable "aws_region" {
-  default = "us-east-1"
+  description = "AWS region for the app and the shared platform state"
+  type        = string
+  default     = "us-east-1"
+}
+
+variable "state_bucket" {
+  description = "S3 bucket holding the shared platform remote state (network, ecs, traefik)"
+  type        = string
 }
 
 variable "app_name" {
   description = "Application name"
   type        = string
-  default     = "CHANGE_ME"  # <-- CHANGE THIS
+  default     = "CHANGE_ME" # <-- CHANGE THIS
 }
 
 variable "hostname" {
   description = "Public hostname for the app"
   type        = string
-  default     = "CHANGE_ME.example.com"  # <-- CHANGE THIS
+  default     = "CHANGE_ME.example.com" # <-- CHANGE THIS
 }
 
 variable "image_tag" {
@@ -131,7 +137,8 @@ variable "image_tag" {
 }
 
 variable "ecr_registry" {
-  default = "123456789012.dkr.ecr.us-east-1.amazonaws.com"
+  description = "ECR registry host, e.g. <account-id>.dkr.ecr.<region>.amazonaws.com (set by CI)"
+  type        = string
 }
 
 variable "cpu" {

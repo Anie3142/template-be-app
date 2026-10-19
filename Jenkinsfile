@@ -12,6 +12,14 @@
 // - In a SPAWNED app repo, the /new-app skill (or you manually) replaces
 //   APP_NAME with a lowercase app name like 'myapp'. The gates then
 //   auto-release and the full build → push → deploy → smoke pipeline runs.
+//
+// No account-specific values live in this file. The Jenkins controller
+// provides them as global environment variables:
+//   TF_STATE_BUCKET  S3 bucket for Terraform state (app + shared platform)
+//   TF_LOCK_TABLE    DynamoDB table for Terraform state locking
+//   ECS_CLUSTER      Name of the shared ECS cluster
+//   APP_DOMAIN       Base domain for the smoke test (e.g. example.com)
+// The AWS account ID is resolved at runtime from the agent's IAM role.
 // =============================================================================
 
 pipeline {
@@ -19,8 +27,6 @@ pipeline {
 
     environment {
         AWS_REGION = 'us-east-1'
-        AWS_ACCOUNT_ID = '123456789012'
-        ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
         APP_NAME = 'CHANGE_ME'  // <-- CHANGE THIS: your-app-name (lowercase, hyphen-ok)
         IMAGE_TAG = "${GIT_COMMIT.take(7)}"
     }
@@ -47,12 +53,25 @@ pipeline {
             }
         }
 
+        stage('Resolve AWS account') {
+            when { expression { return env.APP_NAME != 'CHANGE_ME' } }
+            steps {
+                script {
+                    env.AWS_ACCOUNT_ID = sh(
+                        script: 'aws sts get-caller-identity --query Account --output text',
+                        returnStdout: true
+                    ).trim()
+                    env.ECR_REGISTRY = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
+                }
+            }
+        }
+
         stage('Test') {
             steps {
                 sh '''
                     echo "Running tests..."
                     # Add your test commands here
-                    # python -m pytest backend/tests/ -v
+                    # cd backend && pip install -r requirements-dev.txt && pytest -q  (GitHub Actions already runs this)
                 '''
             }
         }
@@ -90,8 +109,18 @@ pipeline {
                     // Do NOT use aws2-wrap here: it requires ~/.aws/config (SSO profile), which
                     // doesn't exist in the ECS container. aws2-wrap is only for dev machines.
                     sh '''
-                        terraform init -input=false
-                        terraform plan -var="image_tag=${GIT_SHA}" -out=tfplan
+                        terraform init -input=false \
+                            -backend-config="bucket=${TF_STATE_BUCKET}" \
+                            -backend-config="key=apps/${APP_NAME}/terraform.tfstate" \
+                            -backend-config="region=${AWS_REGION}" \
+                            -backend-config="dynamodb_table=${TF_LOCK_TABLE}"
+                        terraform plan -input=false \
+                            -var="app_name=${APP_NAME}" \
+                            -var="image_tag=${GIT_SHA}" \
+                            -var="ecr_registry=${ECR_REGISTRY}" \
+                            -var="state_bucket=${TF_STATE_BUCKET}" \
+                            -var="aws_region=${AWS_REGION}" \
+                            -out=tfplan
                         terraform apply -auto-approve tfplan
                     '''
                 }
@@ -104,7 +133,7 @@ pipeline {
                 sh '''
                     echo "Waiting for ECS deployment to stabilize..."
                     aws ecs wait services-stable \
-                        --cluster example-cluster \
+                        --cluster ${ECS_CLUSTER} \
                         --services ${APP_NAME} \
                         --region ${AWS_REGION}
                     echo "Deployment complete!"
@@ -117,8 +146,8 @@ pipeline {
             steps {
                 sh '''
                     echo "Running smoke test..."
-                    # Replace with your app hostname
-                    # curl -f https://${APP_NAME}.example.com/health || exit 1
+                    # Enable once the hostname resolves:
+                    # curl -fsS https://${APP_NAME}.${APP_DOMAIN}/api/v1/health || exit 1
                     echo "Smoke test passed!"
                 '''
             }

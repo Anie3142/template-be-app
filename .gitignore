@@ -24,6 +24,15 @@ node_modules/
 .terraform/
 *.tfstate*
 .terraform.lock.hcl
+*.tfplan
+tfplan
+backend.hcl
+terraform.tfvars
+
+# Test / lint caches
+.pytest_cache/
+.ruff_cache/
+.coverage
 
 # Editor / OS
 .DS_Store

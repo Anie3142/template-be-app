@@ -8,7 +8,6 @@ Production-ready patterns baked in:
 - CacheControlMiddleware (private browser cache on read-mostly GETs)
 - Auth0 JWT authentication
 """
-import os
 from pathlib import Path
 
 import dj_database_url
